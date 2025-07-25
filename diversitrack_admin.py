@@ -1,38 +1,41 @@
-
-# diversitrack_admin.py
 import streamlit as st
-from firebase_admin import credentials, firestore, initialize_app
 import json
+import io
+from firebase_admin import credentials, firestore, initialize_app
 
-# Load Firebase credentials
-if "firebase_initialized" not in st.session_state:
-    cred = credentials.Certificate("firebase_credentials.json")
+# Load Firebase credentials from Streamlit secrets
+firebase_json = json.loads(st.secrets["FIREBASE_CREDENTIALS"])
+cred = credentials.Certificate(io.StringIO(json.dumps(firebase_json)))
+
+# Initialize Firebase
+if not firestore._apps:
     initialize_app(cred)
-    st.session_state.firebase_initialized = True
-
 db = firestore.client()
 
-st.title("🎮 DiversiTrack Admin Panel")
-st.markdown("Use this to control the round and monitor the leaderboard.")
+st.title("🎛️ DiversiTrack Admin Panel")
 
-# Control round
-round_doc = db.collection("game_state").document("round_control")
-event_doc = db.collection("game_state").document("event_list")
+if "current_round" not in st.session_state:
+    st.session_state.current_round = 1
 
-round_info = round_doc.get().to_dict() or {"round": 1}
-current_round = round_info["round"]
-st.subheader(f"📢 Current Round: {current_round}")
+round_in_db = db.collection("game").document("state")
+data = round_in_db.get().to_dict()
 
-new_round = st.number_input("Set Round Number", min_value=1, value=current_round, step=1)
-if st.button("Update Round"):
-    round_doc.set({"round": int(new_round)})
-    st.success(f"Round updated to {new_round}")
+if data:
+    st.session_state.current_round = data.get("round", 1)
 
-# Show leaderboard
+new_round = st.number_input("Set Current Round", min_value=1, max_value=50, value=st.session_state.current_round)
+if st.button("✅ Update Round for All Players"):
+    round_in_db.set({"round": int(new_round)})
+    st.success(f"Round updated to {new_round}!")
+
+st.markdown("---")
 st.subheader("🏆 Leaderboard")
-players_ref = db.collection("players")
-players = [(doc.id, doc.to_dict().get("score", 0)) for doc in players_ref.stream()]
-sorted_players = sorted(players, key=lambda x: -x[1])
+players = db.collection("players").stream()
+leaderboard = []
+for p in players:
+    d = p.to_dict()
+    leaderboard.append((d.get("name", "Unknown"), d.get("score", 0)))
 
-for i, (name, score) in enumerate(sorted_players, 1):
-    st.write(f"{i}. **{name}** — Score: {score}")
+leaderboard.sort(key=lambda x: x[1], reverse=True)
+for i, (name, score) in enumerate(leaderboard, 1):
+    st.write(f"**{i}. {name}** — 💰 Score: `{score}`")
