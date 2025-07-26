@@ -1,41 +1,38 @@
-import streamlit as st
-import json
-import io
-from firebase_admin import credentials, firestore, initialize_app
 
-# Load Firebase credentials from Streamlit secrets
-firebase_json = json.loads(st.secrets["FIREBASE_CREDENTIALS"])
-cred = credentials.Certificate(io.StringIO(json.dumps(firebase_json)))
+import streamlit as st
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 # Initialize Firebase
-if not firestore._apps:
-    initialize_app(cred)
+if "firebase_initialized" not in st.session_state:
+    cred = credentials.Certificate({"type": "service_account", "project_id": "diversitrack-84482", "private_key_id": "62e5bcb9601a3da8b8d012adcbf8291d8a5c2a8f", "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCzDwj0uDyPdU5v\nwggnmkfE4S4LjZoKIQf5p0VGoK4hyIX8KarDdi8MfUf0EBmID0udIEj25bUlSgoJ\nG6AsDXjp/q/Pv9isFi46gNM+fvDEDd2b1k+b2TruVjTocXxha6uqwLbte9K1KX73\nc8zSSuIEiXRkbX24q5YvqxyGIM1HLKNxrNShsyZPOJoiQNwW6i4XomG4DBb6nTO+\neNS1CAcrKeBrnS2uVHwrAPTNemEfkcRo+GIFqObYvSoW6XiZ+GYiZXxFxEsa/mQd\nC5W2kVQbMtFy5t+tmpy7cN35hl0uR9v+cV0s/cs0Wr0uyc6Z2qptdjnBQRDc2Ft2\naU6f+j0lAgMBAAECggEAEax8fRE5UwyoXRIZFXWeO2HhllzX9UN84si+pwHBpk6B\nYRoow4nFC5XLFh1Hs90UoNH4ubwDJQbZljwOk4KR6oDL0DT2uUeoMPiZwTus3qEi\nvFjLO04WCcPjDYV0GjaTN3O1qpuz+NM7d8fLkf83r2x021vOUr3HAXYBhwCyWmG0\neNR9Pd5Bc8SFewLa3Ao/f0nogQOEqD9w+p3Bb4WQZ1RKtvFzoyiWvzgcTyY0wfFM\nBJCvmgVAnuP/LeGLG4gOxHj52vCEAyNoam9YxwQCXY9FG5IxCCqZixbdpRbcWuGz\nPWoSbSoPJaFdapCyrAJR0Ui+vRvtk1W9CHdea5FOcQKBgQDjq66fZNuJf8guE0uX\nn2Su8fKEE1hBgl4iWVQ1ka955FHviWj5LQ/LDWUKHt596/03em6GZAFD5KXKlfs9\nD7ESQOMvm04oh433ZOIrCkXH8O+kPX+/3e8zxUTOiJRgwvFsah5JVgR3rtflN1AR\nVUB2iogXFRHtQNEgJdCVzNiWkQKBgQDJVtk2Zp+fBoxXneEeeqnVtz9DgJbq6y2E\ndO8dRaM2e7zM/WKiFVvEi2zSTbWQvciSwTea1tbfmzELZF5WuaIhWjt/N1pnpdWx\n1U7lRYSHuFc8BBIfjLk0FQOxzw3ZU5m1VeH/oya00Zptq9z71mqUyAvnnORJKmBm\nLRyXB8HPVQKBgCSPQS9fZtGhr2eWuaDTe7uMJsGGyblbUfp6Fce0aVVNkMrCahT5\nY3vb3snNQzU9XCA4jN8P2BQq92ScyQd5KZogyVqvudFQUz/S926p66K70f+x0H3j\nCbJqjy4LSKhxJYufTtW/9l+xuAGa7EScSAnBHTF3tLVAn1RmPiSQDIfBAoGABftB\nir8zwMq2AqhbFse4IfRGud+pHCOOf5/ltq3p8mVsr35bnssZpdYqjnjmiv1IZyu8\nVipJyezXYSpDLzpmma0PlXD0i52+ooDezirpjAqq9Mp+K1fH7McvC+pF1A4Kw/tg\nMnMLZFXRy65Oa2DsW60xxVjA43eR05dFgSsm090CgYEAyjdU9UhzfVn2IPWVqVgr\ngHZ0Icz9jdd0vWr17T47ao9FRnSw+swrPnxW1yWqQEAoxyF1/GwyecklsLlJNmd2\nP+0rrFUT9aaRi9JcNl0SUyOYX3AbACVbo7AhXVjDgtRD+xJ9W6pElwDYElmGMOpw\ndhBAPEUEhmKOUWI3x0KgWdA=\n-----END PRIVATE KEY-----\n", "client_email": "firebase-adminsdk-fbsvc@diversitrack-84482.iam.gserviceaccount.com", "client_id": "115569456570043153491", "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs", "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40diversitrack-84482.iam.gserviceaccount.com", "universe_domain": "googleapis.com"})
+    firebase_admin.initialize_app(cred)
+    st.session_state.firebase_initialized = True
+
 db = firestore.client()
 
-st.title("🎛️ DiversiTrack Admin Panel")
+st.title("DiversiTrack Admin Panel")
 
-if "current_round" not in st.session_state:
-    st.session_state.current_round = 1
+round_ref = db.collection("game").document("state")
+leaderboard_ref = db.collection("game").document("leaderboard")
 
-round_in_db = db.collection("game").document("state")
-data = round_in_db.get().to_dict()
+if st.button("Start New Game (Round 1)"):
+    round_ref.set({"round": 1})
+    leaderboard_ref.set({"scores": []})
+    st.success("Game restarted to Round 1.")
 
-if data:
-    st.session_state.current_round = data.get("round", 1)
+if st.button("Next Round"):
+    current = round_ref.get().to_dict().get("round", 1)
+    round_ref.update({"round": current + 1})
+    st.success(f"Moved to Round {current + 1}")
 
-new_round = st.number_input("Set Current Round", min_value=1, max_value=50, value=st.session_state.current_round)
-if st.button("✅ Update Round for All Players"):
-    round_in_db.set({"round": int(new_round)})
-    st.success(f"Round updated to {new_round}!")
+st.subheader("Current Round")
+round_data = round_ref.get().to_dict()
+st.write(f"📍 Current Round: {round_data.get('round', 'Not set')}")
 
-st.markdown("---")
-st.subheader("🏆 Leaderboard")
-players = db.collection("players").stream()
-leaderboard = []
-for p in players:
-    d = p.to_dict()
-    leaderboard.append((d.get("name", "Unknown"), d.get("score", 0)))
-
-leaderboard.sort(key=lambda x: x[1], reverse=True)
-for i, (name, score) in enumerate(leaderboard, 1):
-    st.write(f"**{i}. {name}** — 💰 Score: `{score}`")
+st.subheader("Leaderboard")
+leaderboard_data = leaderboard_ref.get().to_dict()
+if leaderboard_data:
+    st.table(leaderboard_data.get("scores", []))
+else:
+    st.info("No scores yet.")
